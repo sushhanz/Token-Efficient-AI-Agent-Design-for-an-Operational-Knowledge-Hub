@@ -1,6 +1,6 @@
 google-genai
 langchain
-langchain-google-genai
+#langchain-google-genai  # deprecated, I moved to groq
 langchain-community
 langchain-core
 langchain-huggingface

@@ -1,0 +1,185 @@
+\documentclass[pdflatex,sn-mathphys-num,oneside]{sn-jnl}% Math and Physical Sciences Numbered Reference Style
+
+%%%% Standard Packages
+\geometry{left=2.5cm, right=2.5cm, top=2cm, bottom=2cm}
+\usepackage{graphicx}%
+\usepackage{multirow}%
+\usepackage{amsmath,amssymb,amsfonts}%
+\usepackage{amsthm}%
+\usepackage{mathrsfs}%
+\usepackage[title]{appendix}%
+\usepackage{xcolor}%
+\usepackage{textcomp}%
+\usepackage{manyfoot}%
+\usepackage{booktabs}%
+\usepackage{algorithm}%
+\usepackage{algorithmicx}%
+\usepackage{algpseudocode}%
+\usepackage{listings}%
+\usepackage{float}
+\usepackage{placeins}
+%%%%
+
+\theoremstyle{thmstyleone}%
+\newtheorem{theorem}{Theorem}%  meant for continuous numbers
+\newtheorem{proposition}[theorem]{Proposition}% 
+\theoremstyle{thmstyletwo}%
+\newtheorem{example}{Example}%
+\newtheorem{remark}{Remark}%
+\theoremstyle{thmstylethree}%
+\newtheorem{definition}{Definition}%
+\raggedbottom
+\begin{document}
+
+\title[Article Title]{Optimizing Token Usage in an AI Agent}
+\author{\fnm{Hanzhe} \sur{Wang}}
+\maketitle
+
+\section{Optimization Techniques}\label{sec1}
+
+\subsection{Context compression}
+A prompt can typically be split into different components: (system) instructions, context (e.g., conversation history or retrieved documents) and the user's question. 
+With the introduction of retrieval-augmented generation (RAG)\cite{RAG} and multi-turn agents, prompt contexts for large language models (LLMs) have become increasingly large.
+Yet often parts of the prompts are irrelevant to answering the user's question. This leads to wasted tokens, increased latency, and sometimes reduced accuracy (in long prompts). 
+Different techniques have been developed to reduce the prompt size, thus also the input tokens, while keeping key information. 
+Existing techniques can be broadly categorized into two categories: abstractive methods and extractive methods. 
+
+\subsubsection{Abstractive context compression}
+Abstractive methods rewrite large contexts into compact summaries containing only the key information relevant to the user's question. 
+The summarized context is then given to the LLM instead of the original context. 
+CompAct, a representative abstractive approach, rewrites the context using a separate, much cheaper compressor LLM. 
+The compressor LLM iteratively takes a subset of the original context together with the already compressed context and the user question. 
+With the given inputs, it adds relevant information to the compressed context \cite{compact}. 
+Through this method, it can significantly compress the context and thus the input tokens for the LLM. 
+\\ \\
+This approach significantly compresses the context for the final LLM and thus the input tokens. 
+Testing has also shown competitive and even superior performance in multi-document contexts compared to other long-context LLMs without compression\cite{compact}.
+However, the compressor LLM still needs to process the original documents and thus, combining the tokens of both LLMs, it actually could be processing more. 
+If looking at cost savings, this approach is very interesting, but latency-wise it could perform worse than without compression. 
+Using a weaker model for compression also comes at a risk of hallucinating or missing facts during compression.
+
+\subsubsection{Extractive context compression}
+Extractive methods do not generate summaries; instead, they remove redundant or irrelevant information from the context. 
+Typically, this is done by scoring the documents and/or the tokens and dropping low-scoring ones. 
+LongLLMLingua does this by using the document's relevance score as a compression budget and dropping predictable tokens (and therefore low information entropy) according to that budget \cite{longlingua}.
+\\ \\
+These methods significantly reduce compression time and token usage compared to abstractive methods. They also do not introduce noise but filter it out, which could improve performance.
+However, it is hard to tune the exact filter criteria as these lack context awareness. 
+
+\subsection{Token aware reasoning}
+Besides compressing input tokens, we could also look at output tokens. 
+Reasoning enhancement techniques such as chain-of-thought (CoT) allow LLMs to reason about complex prompts \cite{cot}. 
+Often LLMs generate excessive tokens during reasoning, which could be compressed with a token budget in the prompt. 
+Choosing a fitting token budget could effectively reduce LLM output tokens while having minimal impact on performance \cite{rbudget}. 
+\\ \\
+In such approaches, it is important to set a correct token budget to effectively compress the output token usage. 
+A token budget too low would have an inverse effect where the LLM does not follow the budget and exceeds it, referred to as "Token Elasticity" \cite{rbudget}.
+
+\subsection{LLM aware retrieval}
+In RAG systems, retrieval happens first before the LLM is fed a prompt. The retrieved context is the biggest contributor to the input tokens.
+If the LLM already had the answer stored in its parametric memory, the context would be redundant.
+\\ \\
+This approach relies on knowing when the LLM has correct information. 
+This can be done by training a distilled classifier model of the LLM predicting whether the knowledge is present.
+From testing, it follows that the accuracy of such a distilled model enhanced with 32 tokens from the LLM is around 80\%.
+In their case, it saved around 50\% of RAG usage; in practice, this is dependent on the use case \cite{LLMretrieval}. 
+Here we have a clear trade-off between performance and accuracy. In heavily redundant RAG cases, this could be an appealing option.
+
+\section{Preferred approach}\label{sec2}
+\subsection{Extractive context compression}\label{subsec22}
+In RAG-based systems, retrieved documents are the primary driver of input-token inflation. 
+Although abstractive methods have impressive compression capabilities, they increase the latency and potential noise, thus reducing part of the benefits of compression.
+With an extractive compressor, we only need to drop redundant tokens, making it a highly pragmatic choice for a prototype. 
+\\ \\
+To implement, we could use existing scorers, such as a cross-encoder, to evaluate sentence relevance. 
+These can then be used to score parts (e.g., sentences) of the retrieved context against the user's question. 
+Using the scores, irrelevant parts of the context could be dropped while keeping only the essential information.
+
+\subsection{Token Aware reasoning}\label{subsec21}
+Output tokens take much longer to generate than input tokens take to process. 
+This is why, latency-wise, it is very interesting to look at how we can compress these.
+Token-aware reasoning is a very pragmatic approach that requires minimal architectural changes, as it is purely prompt-based.
+This fits perfectly as an initial approach for testing and implementation in our prototype, directly targeting cost and latency.
+\\ \\
+A pragmatic approach for prototyping is to use an LLM to estimate the prompt budget. 
+The key intuition is that a person may take time to compute an exact answer but can quickly estimate the effort required to solve it \cite{rbudget}.
+
+\subsection{Metrics and evaluation}
+We should test and compare the prototype with the vanilla RAG baseline and the different compression configurations. 
+Run each of these through the same questions, with the same configuration and models. 
+\\We should look at:
+\begin{itemize}
+    \item Exact Match (EM) score: This is a binary score indicating whether the LLM answer matches the ground truth exactly. 
+    Typically, normalization is applied, removing articles, whitespace, punctuation, and setting letters to lowercase.
+    \item F1 score: The F1 score measures the overlap of the LLM answer with the ground truth. While EM scores very strictly, F1 can be much more lenient
+    and gives points if the answer partially contains the ground truth. The formula: \( F1 = 2 * \frac{Precision * Recall}{Precision + Recall}\)
+    \item Precision: The fraction of words in the LLM answer that also appear in the ground truth.
+    \item Recall: The fraction of words in the ground truth that also appear in the LLM answer. 
+    \item End-to-end inference latency: in seconds.
+    \item Input token usage.
+    \item Output token usage.
+\end{itemize}
+
+A competitive compressing technique should keep the accuracy (EM \& F1 scores) as high as possible, while reducing latency and token usage.
+
+
+
+\section{Experiment proposal}\label{sec3}
+Here, we investigate how effective the preferred approaches, as described in section 2, are in a simple RAG setup. 
+For this setup, we used "openai/gpt-oss-120b", a lightweight model accessible via groq; it is free to use and has generous limits \cite{groq}. 
+For the embedding model, "sentence-transformers/all-MiniLM-L6-v2" is used, and for the cross-encoder, "cross-encoder/ms-marco-MiniLM-L-6-v2" is used.
+Both are lightweight models accessible via HuggingFace \cite{embedding} \cite{crossencoder}. The implementation is done in Python using LangChain.
+\\ \\
+For testing, we used the hotpot\_qa dataset as it requires multi-hop reasoning while the answers remain simple. 
+The simple QA answers lean well into metrics such as Exact Match and F1.
+We also look at the end-to-end latency, the input-token count, and the output-token count.
+Using these metrics, we tested four different methods: vanilla (a baseline naive RAG model), context compressed (RAG with sentence-level context compression), reason budget (RAG with reason budgeting in prompt), and fully compressed (this combines the two compression methods).
+\\ \\
+\FloatBarrier
+
+\begin{table}[htpb]
+    \centering
+    \begin{tabular}{||c || c | c | c | c|  c|  c|  c| c||}
+        \hline 
+        Method & EM & F1 & Latency & Input & Output & Total & Compression & Speed \\
+        \hline \hline
+        vanilla & \textbf{66.00\%} & \textbf{77.23\%} & 3.841 & 562.2 & 124.0 & 34307 & 1.00 & 1.00 \\
+        \hline
+        reason budget (token) & 56.00\% & 69.19\% & 5.143 & 569.2 & \textbf{110.5} & 33985 & 0.99 & 1.34 \\
+        \hline
+        context compressed  & 64.00\% & 74.00\% & \textbf{2.974} & \textbf{276.6} & 123.0 & \textbf{19980} & \textbf{0.58} & \textbf{0.77} \\
+        \hline
+        fully compressed (token) & 52.00\% & 66.01\% & 3.141 & 283.6 & 131.8 & 20774 & 0.61 & 0.82 \\
+        \hline
+    \end{tabular}
+    \caption{Performance of the different methods on 50 questions from hotpot\_qa. 
+    EM and F1 are average scores per question. Latency is the average end-to-end latency per question in seconds. 
+    Input and output are the average token count per question. 
+    Total is the total count of tokens used for the entire 50 questions.
+    Compression is the ratio (method total tokens / vanilla total tokens).
+    Speed is the ratio (method latency / vanilla latency).}
+    \label{table:1}
+\end{table}
+
+For context compression, we first split the retrieved documents into sentences. 
+Afterward, we scored the relevance of the sentences using the cross-encoder on the (sentence, question) pairs.
+We then took the top 4 sentences for each question as its context instead of all the retrieved documents. 
+Table \ref{table:1} shows how context compression delivers an impressive token compression of 58\%. This translates into a latency reduction of 33\%.
+While the accuracy of the answers drops by 2 points on EM and 3.23 points on the F1 score, 
+this illustrates extractive context compression's ability to effectively reduce token usage while having minimal impact on accuracy.
+\\ \\
+For the sake of a proof of concept and the scope of this experiment, the budgeting for each question is the same and chosen beforehand. We used a budget of 84 tokens in the prompt. 
+As shown by Table \ref{table:1}, the LLM fails to adhere to this limit. Although it does succeed in reducing the output tokens, it comes at a cost of increased input tokens and an increased latency of 34\%.
+This illustrates how LLMs have a hard time reasoning about their output tokens and how it affects their inference time. 
+Above all, it also performs worse on accuracy, scoring 10 points lower on EM and 8.04 points lower on the F1 score. 
+This suggests alternative implementations or approaches should be chosen instead.
+\\ \\
+The fully compressed model has the worst EM and F1 scores as it inherits both performance drops. 
+While compression and latency wise it performs worse than the context compressed model, due to the negative impact of the token budget.
+
+
+\pagebreak
+
+\bibliography{sn-bibliography}
+
+\end{document}

@@ -1,0 +1,18 @@
+{
+    "files.exclude": {
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/.jj": true,
+        "**/.DS_Store": true,
+        "**/Thumbs.db": true,
+        "**/c:\\Users\\wangq\\Desktop\\kul\\imec_exercise_Token_optimization\\sn-article.aux": true,
+        "**/c:\\Users\\wangq\\Desktop\\kul\\imec_exercise_Token_optimization\\sn-article.log": true,
+        "**/c:\\Users\\wangq\\Desktop\\kul\\imec_exercise_Token_optimization\\sn-article.gz": true,
+        "**/c:\\Users\\wangq\\Desktop\\kul\\imec_exercise_Token_optimization\\sn-article.out": true,
+        "**/c:\\Users\\wangq\\Desktop\\kul\\imec_exercise_Token_optimization\\report\\sn-article.aux": true,
+        "**/c:\\Users\\wangq\\Desktop\\kul\\imec_exercise_Token_optimization\\report\\sn-article.log": true,
+        "**/c:\\Users\\wangq\\Desktop\\kul\\imec_exercise_Token_optimization\\report\\sn-article.gz": true,
+        "**/c:\\Users\\wangq\\Desktop\\kul\\imec_exercise_Token_optimization\\report\\sn-article.out": true
+    }
+}

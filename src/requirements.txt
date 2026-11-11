@@ -1,0 +1,11 @@
+google-genai
+langchain
+langchain-google-genai
+langchain-community
+langchain-core
+langchain-huggingface
+datasets
+faiss-cpu
+sentence-transformers
+python-dotenv
+langchain-groq
